@@ -1,0 +1,2 @@
+# Cloud-Based ECG Signal Analysis for Real-Time Cardiac Rhythm Monitoring Using AI
+Cloud-based real-time ECG monitoring system using IoT and AI. ECG signals are preprocessed and R-peaks detected with the Pan–Tompkins algorithm, then classified by a lightweight 1D-CNN for arrhythmia detection. A web dashboard provides live waveform visualization, heart-rate trends, and abnormal-rhythm alerts for remote healthcare monitoring.
