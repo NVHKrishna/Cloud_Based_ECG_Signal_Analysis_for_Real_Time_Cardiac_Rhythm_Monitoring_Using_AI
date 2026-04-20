@@ -1,5 +1,7 @@
 import numpy as np
 import wfdb
+import os
+from bson import ObjectId
 from scipy.signal import butter, filtfilt
 import tensorflow as tf
 from tensorflow.keras.models import load_model
@@ -7,11 +9,9 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 
 # ================= PARAMETERS =================
 DATA_PATH = r"C:\Users\NVH Krishna\Desktop\Theme_Based\Ecg_Dataset\mitdbdir\\"
-TEST_RECORD = "233"
-
+TEST_RECORD = "203"
 WINDOW = 220
 fs = 360
-
 
 # ================= FOCAL LOSS =================
 def focal_loss(gamma=2., alpha=.25):
@@ -27,7 +27,6 @@ def focal_loss(gamma=2., alpha=.25):
         return tf.reduce_sum(weight * cross_entropy, axis=1)
 
     return loss
-
 
 # ================= BANDPASS FILTER =================
 def bandpass_filter(signal):
@@ -56,7 +55,6 @@ print("Total annotated beats:", len(r_peaks))
 # ================= FILTER ECG =================
 signal = bandpass_filter(signal)
 
-
 # ================= SEGMENT BEATS =================
 beats = []
 true_labels = []
@@ -67,7 +65,6 @@ for i, peak in enumerate(r_peaks):
 
         beat = signal[peak-WINDOW : peak+WINDOW]
 
-        # normalize
         beat = (beat - np.mean(beat)) / (np.std(beat) + 1e-8)
 
         beats.append(beat)
@@ -83,10 +80,8 @@ true_labels = np.array(true_labels)
 
 print("Total beats extracted:", len(beats))
 
-
 # ================= RESHAPE FOR CNN =================
 beats = beats.reshape(-1, WINDOW*2, 1)
-
 
 # ================= LOAD MODEL =================
 model = load_model(
@@ -94,60 +89,157 @@ model = load_model(
     custom_objects={"loss": focal_loss()}
 )
 
-print("Model loaded successfully")
-
+print("Model loaded successfully !!")
 
 # ================= PREDICT =================
 pred = model.predict(beats)
-
 pred_classes = np.argmax(pred, axis=1)
 
 
-# ================= SAMPLE OUTPUT =================
-print("\nSample predictions:\n")
+# ================= HEART RATE (EVERY 10 BEATS) =================
+valid_r_peaks = []
 
-for i in range(min(20, len(pred_classes))):
+for i, peak in enumerate(r_peaks):
+    if peak - WINDOW >= 0 and peak + WINDOW < len(signal):
+        valid_r_peaks.append(peak)
 
-    predicted = "Normal" if pred_classes[i] == 0 else "Arrhythmia"
-    actual = "Normal" if true_labels[i] == 0 else "Arrhythmia"
+valid_r_peaks = np.array(valid_r_peaks)
 
-    print(f"Beat {i+1}: Predicted={predicted} | Actual={actual}")
+print("\n------ HEART RATE (EVERY 10 BEATS) ------\n")
+
+rr_intervals = []
+
+for i in range(1, len(valid_r_peaks)):
+
+    rr = (valid_r_peaks[i] - valid_r_peaks[i-1]) / fs
+
+    if rr < 0.3 or rr > 2.0:
+        continue
+
+    rr_intervals.append(rr)
+
+    if len(rr_intervals) % 10 == 0:
+
+        last_10_rr = rr_intervals[-10:]
+
+        robust_hr = 60 / np.median(last_10_rr)
+        mean_hr = 60 / np.mean(last_10_rr)
+
+        print(f"Beats {len(rr_intervals)-9} to {len(rr_intervals)} → "
+              f"HR (Robust): {robust_hr:.2f} BPM | HR (Mean): {mean_hr:.2f} BPM")
 
 
 # ================= ACCURACY =================
 accuracy = accuracy_score(true_labels, pred_classes)
-
 print("\nPrediction Accuracy:", round(accuracy*100,2), "%")
 
 
 # ================= CONFUSION MATRIX =================
 print("\nConfusion Matrix\n")
-
 print(confusion_matrix(true_labels, pred_classes))
 
 
 # ================= CLASSIFICATION REPORT =================
 print("\nClassification Report\n")
-
 print(classification_report(true_labels, pred_classes))
 
 
-# ================= FINAL ECG REPORT =================
+# ================= FINAL CLASSIFICATION LOGIC =================
 arrhythmia_beats = np.sum(pred_classes == 1)
 normal_beats = np.sum(pred_classes == 0)
-
 total = len(pred_classes)
-
 arr_percent = (arrhythmia_beats / total) * 100
 
-print("\n------ FINAL ECG REPORT ------")
-
-print("Total Beats Analysed:", total)
-print("Normal Beats:", normal_beats)
-print("Arrhythmia Beats:", arrhythmia_beats)
-print("Arrhythmia Percentage:", round(arr_percent,2), "%")
+median_rr = np.median(rr_intervals) if rr_intervals else 0.0
+avg_rr = np.mean(rr_intervals) if rr_intervals else 0.0
 
 if arr_percent > 10:
-    print("\n🫀 FINAL RESULT: ARRHYTHMIA DETECTED")
+    final_result_str = "Arrhythmia Detected"
+
 else:
-    print("\n🫀 FINAL RESULT: ECG NORMAL")
+    final_result_str = "Normal"
+
+# ================= SAVE TO DATABASE =================
+try:
+    from pymongo import MongoClient
+    from datetime import datetime
+    
+    # Connection to MongoDB
+    client = MongoClient("mongodb://localhost:27017/")
+    db = client["ecg_db"]
+    reports_col = db["reports"]
+    
+    # ── Get logged-in user from current_user.txt ──
+    ACTIVE_USER_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "current_user.txt")
+    user_id = None
+    if os.path.exists(ACTIVE_USER_FILE):
+        raw = open(ACTIVE_USER_FILE).read().strip()
+        if raw:
+            try:
+                user_id = ObjectId(raw)
+                print(f"\n🔗 Linking report to logged-in user: {user_id}")
+            except Exception:
+                pass
+    
+    if not user_id:
+        # Fallback: use the most recent real user (non-OAuth)
+        user = db["users"].find_one({"provider": "local"}, sort=[("_id", -1)])
+        if not user:
+            user = db["users"].find_one(sort=[("_id", -1)])
+        user_id = user["_id"] if user else None
+        print(f"⚠️  No active login file found — falling back to user: {user_id}")
+
+    report_data = {
+        "record": TEST_RECORD,
+        "totalBeats": int(total),
+        "normalBeats": int(normal_beats),
+        "arrhythmiaBeats": int(arrhythmia_beats),
+        "arrhythmiaPercent": float(round(arr_percent, 2)),
+        "accuracy": float(round(accuracy * 100, 2)),
+        "finalResult": final_result_str,
+        "avgHeartRate": float(round(60 / avg_rr, 2)) if avg_rr > 0 else 0.0,
+        "robustHeartRate": float(round(60 / median_rr, 2)) if median_rr > 0 else 0.0,
+        "avgRRms": float(round(avg_rr * 1000, 1)) if avg_rr > 0 else 0.0,
+        "hrWindows": [
+            {
+                "beatRange": f"{i*10+1}–{(i+1)*10}",
+                "robustHR": round(60 / np.median(rr_intervals[i*10:(i+1)*10]), 2),
+                "meanHR": round(60 / np.mean(rr_intervals[i*10:(i+1)*10]), 2)
+            }
+            for i in range(len(rr_intervals)//10)
+        ],
+        "rrIntervals": [round(float(r * 1000), 1) for r in rr_intervals[:2000]],
+        "userId": user_id,
+        "timestamp": datetime.now()
+    }
+    
+    # Overwrite previous reports for THIS USER only
+    if user_id:
+        reports_col.delete_many({"userId": user_id})
+    else:
+        reports_col.delete_many({}) # Fallback for no user
+    
+    # Insert into database
+    reports_col.insert_one(report_data)
+    print("\n✅ Report successfully saved to MongoDB.")
+    client.close()
+    
+except Exception as e:
+    print(f"\n Failed to save report to MongoDB: {e}")
+
+print(f"\n------ FINAL ECG REPORT ------")
+print(f"Total Beats Analysed: {total}")
+print(f"Normal Beats: {normal_beats}")
+print(f"Arrhythmia Beats: {arrhythmia_beats}")
+print(f"Arrhythmia Percentage: {round(arr_percent, 2)} %")
+print(f"Median RR: {round(median_rr, 3)} s")
+print(f"Average RR (Clean): {round(avg_rr, 3)} s")
+print(f"Average Heart Rate (Mean): {round(60 / avg_rr, 2) if avg_rr > 0 else 0.0} BPM")
+print(f"Average Heart Rate (Robust): {round(60 / median_rr, 2) if median_rr > 0 else 0.0} BPM")
+
+if final_result_str == "Arrhythmia Detected":
+    print("\n🫀 FINAL RESULT: ARRHYTHMIA DETECTED......")
+elif final_result_str == "Normal":
+    print("\n🫀 FINAL RESULT: Normal......")
+else:
+    print(f"\n🫀 FINAL RESULT: {final_result_str.upper()}")

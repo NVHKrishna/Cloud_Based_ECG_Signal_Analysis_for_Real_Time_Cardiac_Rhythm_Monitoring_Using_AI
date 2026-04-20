@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ecg-dark text-ecg-text font-sans antialiased;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.03) 0%, transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-ecg-dark;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ecg-muted/20 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ecg-muted/40;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-ecg-dark-card border border-ecg-dark-border rounded-2xl shadow-ecg-card transition-all duration-300;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-ecg-cyan text-white shadow-lg shadow-ecg-cyan/20 transition-all duration-300 hover:shadow-ecg-cyan/40 hover:-translate-y-0.5 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm border border-ecg-cyan text-ecg-cyan bg-transparent transition-all duration-300 hover:bg-ecg-cyan/5 hover:-translate-y-0.5 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-ecg-text-dim transition-all duration-200 hover:text-ecg-text hover:bg-ecg-dark-surface active:scale-95;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-white border border-ecg-dark-border text-ecg-text placeholder-ecg-muted outline-none transition-all duration-200 focus:border-ecg-cyan focus:ring-4 focus:ring-ecg-cyan/10;
+  }
+
+  .status-normal {
+    @apply text-ecg-green bg-ecg-green/10 border-ecg-green/20;
+  }
+
+  .status-warning {
+    @apply text-ecg-warning bg-ecg-warning/10 border-ecg-warning/20;
+  }
+
+  .status-critical {
+    @apply text-ecg-critical bg-ecg-critical/10 border-ecg-critical/20;
+  }
+
+  .metric-card {
+    @apply card p-5 flex flex-col gap-1.5 relative overflow-hidden hover:border-ecg-cyan/20;
+  }
+
+  .metric-card::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.05), transparent);
+  }
+
+  .metric-card:hover::before {
+    @apply opacity-100;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  }
+
+  .ecg-grid {
+    background-color: #ffffff;
+    background-image:
+      linear-gradient(rgba(239, 68, 68, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(239, 68, 68, 0.05) 1px, transparent 1px),
+      linear-gradient(rgba(239, 68, 68, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(239, 68, 68, 0.02) 1px, transparent 1px);
+    background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+  }
+
+  .nav-link {
+    @apply relative text-ecg-text-dim hover:text-ecg-cyan transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-ecg-cyan after:transition-all after:duration-300 hover:after:w-full;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #0ea5e9, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-gradient {
+    border-image: linear-gradient(135deg, #0ea5e9, #10b981) 1;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full;
+  }
+}
+
+/* ECG waveform animation */
+@keyframes ecg-draw {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ecg-line {
+  stroke-dasharray: 1000;
+  animation: ecg-draw 2s linear infinite;
+}
+
+/* Particle dot grid bg */
+.dot-grid {
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 40px 40px;
+}

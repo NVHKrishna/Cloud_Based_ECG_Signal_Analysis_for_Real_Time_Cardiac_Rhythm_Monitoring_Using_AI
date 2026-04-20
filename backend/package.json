@@ -1,0 +1,22 @@
+{
+  "name": "ecg-backend",
+  "version": "1.0.0",
+  "description": "IoT ECG Monitoring Backend — Node.js + Express + Socket.io",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.1",
+    "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.4.1",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

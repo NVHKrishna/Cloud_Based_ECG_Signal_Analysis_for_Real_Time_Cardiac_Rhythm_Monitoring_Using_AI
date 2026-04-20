@@ -60,3 +60,5 @@ Ecg_Dataset/
 # -----------------------------
 .DS_Store
 Thumbs.db
+node_modules
+data
