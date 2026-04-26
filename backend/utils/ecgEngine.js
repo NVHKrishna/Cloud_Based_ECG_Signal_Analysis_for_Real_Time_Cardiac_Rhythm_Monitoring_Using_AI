@@ -136,7 +136,7 @@ const { spawn } = require('child_process');
  */
 function runMLPrediction(ecgValues) {
   return new Promise((resolve, reject) => {
-    const pythonPath = 'python'; // or 'python3'
+    const pythonPath = 'python3'; // or 'python3'
     const scriptPath = path.join(__dirname, 'predict.py');
     
     const py = spawn(pythonPath, [scriptPath]);

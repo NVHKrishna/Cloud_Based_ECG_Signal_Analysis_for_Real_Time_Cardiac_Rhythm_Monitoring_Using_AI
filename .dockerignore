@@ -1,0 +1,28 @@
+# Ignore everything
+*
+
+# Allow backend
+!backend/
+!backend/**
+
+# Allow ML
+!ML/
+!ML/**
+
+# Allow Dockerfile
+!Dockerfile
+
+# Allow backend dependencies
+!backend/package.json
+!backend/package-lock.json
+!backend/requirements.txt
+
+# Ignore unnecessary inside backend
+backend/node_modules
+backend/.env
+backend/logs
+backend/tmp
+
+# Ignore python cache inside ML
+ML/__pycache__/
+ML/*.pyc

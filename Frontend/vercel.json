@@ -1,15 +1,9 @@
 {
-  "routes": [
+  "version": 2,
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "http://<EC2-IP>/api/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/.*",
-      "dest": "/index.html"
+      "source": "/api/(.*)",
+      "destination": "http://localhost:5005/api/$1"
     }
   ]
 }

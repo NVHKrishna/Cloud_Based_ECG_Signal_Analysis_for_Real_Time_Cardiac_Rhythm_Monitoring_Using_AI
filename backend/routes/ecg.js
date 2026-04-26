@@ -40,7 +40,7 @@ router.get('/process-ecg', authMiddleware, async (req, res) => {
       userId: req.user.id
     });
     await newECG.save();
-    
+
     // Notify clients via Socket.io
     const io = req.app.get('io');
     if (io) {
@@ -126,7 +126,7 @@ router.post('/upload-and-run', authMiddleware, async (req, res) => {
 
     console.log(`[Upload&Run] record=${recordName}  dataPath=${dataPath}  user=${req.user.id}`)
 
-    const py = spawn('python', [scriptPath, recordName, dataPath, req.user.id], {
+    const py = spawn('python3', [scriptPath, recordName, dataPath, req.user.id], {
       cwd: path.join(__dirname, '../../'),
       env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
     })
@@ -163,7 +163,9 @@ router.get('/report', authMiddleware, async (req, res) => {
   let output = '';
   let errorOutput = '';
 
-  const py = spawn('python', [scriptPath, record]);
+  const py = spawn('python3', [scriptPath, record], {
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
+  });
   py.stdout.on('data', d => output += d.toString());
   py.stderr.on('data', d => errorOutput += d.toString());
 
@@ -174,10 +176,10 @@ router.get('/report', authMiddleware, async (req, res) => {
     }
     try {
       const result = JSON.parse(output);
-      
+
       // Overwrite previous reports for this user
       await Report.deleteMany({ userId: req.user.id });
-      
+
       // Save new report to database
       const newReport = new Report({ ...result, userId: req.user.id });
       await newReport.save();

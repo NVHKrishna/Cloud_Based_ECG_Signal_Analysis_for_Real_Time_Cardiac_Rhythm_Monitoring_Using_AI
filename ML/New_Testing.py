@@ -144,8 +144,18 @@ try:
     from pymongo import MongoClient
     from datetime import datetime
 
-    client      = MongoClient("mongodb://localhost:27017/")
-    db          = client["ecg_db"]
+    MONGO_URI = os.environ.get("MONGODB_URI")
+    if not MONGO_URI:
+        raise ValueError("MONGODB_URI environment variable is missing. Cannot connect to MongoDB Atlas.")
+        
+    client = MongoClient(MONGO_URI)
+    
+    # Extract the database name from the URI if present, otherwise default to ecg_db
+    db_name = "ecg_db"
+    if MONGO_URI and MONGO_URI.count("/") > 2 and not MONGO_URI.endswith("/"):
+        db_name = MONGO_URI.split("/")[-1].split("?")[0]
+        
+    db          = client[db_name]
     reports_col = db["reports"]
 
     # -- Resolve user_id: CLI arg > current_user.txt > DB fallback --
