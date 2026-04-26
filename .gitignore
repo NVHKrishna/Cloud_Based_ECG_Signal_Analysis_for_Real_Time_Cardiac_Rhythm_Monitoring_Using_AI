@@ -34,7 +34,7 @@ uploads/
 # -----------------------------
 # Images (optional if dataset)
 # -----------------------------
-*.png
+
 *.jpg
 *.jpeg
 
