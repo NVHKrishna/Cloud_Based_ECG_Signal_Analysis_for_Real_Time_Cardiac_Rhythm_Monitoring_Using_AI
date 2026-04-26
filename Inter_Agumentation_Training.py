@@ -269,8 +269,9 @@ print(classification_report(y_test,y_pred_classes))
 
 
 # ================= SAVE MODEL =================
-model.save("final_ecg_arrhythmia_model.h5")
-
+import os
+model_save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ML", "final_ecg_arrhythmia_model.h5")
+model.save(model_save_path)
 print("Model saved")
 
 

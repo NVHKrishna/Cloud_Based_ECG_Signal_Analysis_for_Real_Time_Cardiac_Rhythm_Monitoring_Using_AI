@@ -18,7 +18,7 @@ router.get('/', authMiddleware, async (req, res) => {
       bed: 'B-04',
       deviceId: 'ESP32-ECG-001',
       admittedOn: new Date(user.createdAt).toISOString().split('T')[0],
-      diagnosis: 'Pending ECG Analysis',
+      diagnosis: 'ECG Analysis',
       bloodType: '--',
       physician: 'AI-Assisted Monitoring',
     })

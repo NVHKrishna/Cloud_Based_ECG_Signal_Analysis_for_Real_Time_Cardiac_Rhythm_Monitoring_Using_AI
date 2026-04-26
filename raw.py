@@ -19,8 +19,10 @@ def focal_loss(gamma=2., alpha=.25):
     return loss
 
 # ================= LOAD MODEL =================
+import os
+model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ML", "final_ecg_arrhythmia_model.h5")
 model = load_model(
-    "final_ecg_arrhythmia_model.h5",
+    model_path,
     custom_objects={"loss": focal_loss()}
 )
 

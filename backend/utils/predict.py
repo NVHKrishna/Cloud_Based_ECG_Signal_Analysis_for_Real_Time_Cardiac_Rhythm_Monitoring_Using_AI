@@ -10,7 +10,7 @@ import json
 import numpy as np
 import os
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'final_ecg_arrhythmia_model.h5')
+MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'ML', 'final_ecg_arrhythmia_model.h5')
 WINDOW = 220   # 220 samples on each side of R-peak → 440 total
 FS = 360       # Assumed sampling rate (MIT-BIH standard)
 

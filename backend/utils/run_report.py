@@ -12,9 +12,7 @@ import os
 DATA_PATH = r"C:\Users\NVH Krishna\Desktop\Theme_Based\Ecg_Dataset\mitdbdir\\"
 WINDOW = 220
 fs = 360
-
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'final_ecg_arrhythmia_model.h5')
-
+MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'ML', 'final_ecg_arrhythmia_model.h5')
 
 def focal_loss(gamma=2., alpha=.25):
     import tensorflow as tf

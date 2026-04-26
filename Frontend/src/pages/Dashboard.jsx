@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import ECGChart from '../components/ECGChart.jsx'
+import { io as socketIO } from 'socket.io-client'
 import {
   Activity, Heart, LogOut, Sun,
   AlertTriangle, Cpu, UserCircle, Smartphone, ShieldAlert, ShieldCheck,
-  Wifi, Clock, RefreshCw, Zap, Download, Edit3, X, Check
+  Wifi, Clock, RefreshCw, Zap, Download, Edit3, X, Check,
+  Upload, Play, CheckCircle, XCircle, Loader
 } from 'lucide-react'
 import {
   generateECGBeat,
@@ -42,6 +44,52 @@ export default function Dashboard() {
   const [profileForm, setProfileForm] = useState({ age: '', gender: '' })
   const [profileSaving, setProfileSaving] = useState(false)
 
+  // Upload & Run state
+  const [selectedFiles, setSelectedFiles] = useState(null)
+  const [runningDataset, setRunningDataset] = useState(false)
+  const [runStatus, setRunStatus] = useState(null) // { type: 'success'|'error', message: string }
+  const fileInputRef = useRef(null)
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files.length > 0) setSelectedFiles(e.target.files)
+  }
+
+  const handleRunDataset = async () => {
+    if (!selectedFiles || selectedFiles.length === 0) return
+    setRunningDataset(true)
+    setRunStatus(null)
+    try {
+      const readFiles = await Promise.all(
+        Array.from(selectedFiles).map(file => new Promise(resolve => {
+          const reader = new FileReader()
+          reader.onload = e => resolve({ name: file.name, content: e.target.result.split(',')[1] })
+          reader.readAsDataURL(file)
+        }))
+      )
+      const resp = await fetch('/api/ecg/upload-and-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
+        body: JSON.stringify({ files: readFiles })
+      })
+      const data = await resp.json()
+      if (!resp.ok) {
+        const errMsg = data?.details
+          ? `Script failed:\n${data.details.slice(-400)}`
+          : (data?.error || 'Failed to run analysis')
+        setRunStatus({ type: 'error', message: errMsg })
+      } else {
+        if (data?.report) setReport(data.report)
+        setRunStatus({ type: 'success', message: `Analysis complete for record "${data?.report?.record || selectedFiles[0]?.name}". Report updated!` })
+        setSelectedFiles(null)
+        if (fileInputRef.current) fileInputRef.current.value = null
+      }
+    } catch (err) {
+      setRunStatus({ type: 'error', message: 'Network error: ' + err.message })
+    } finally {
+      setRunningDataset(false)
+    }
+  }
+
   // fetch patient
   useEffect(() => {
     if (!user?.token) return
@@ -54,16 +102,16 @@ export default function Dashboard() {
       .then(data => {
         if (data) {
           setPatient(data)
-          setProfileForm({ 
-            age: data.age && data.age !== '--' ? data.age : '', 
-            gender: data.gender && data.gender !== '--' ? data.gender : '' 
+          setProfileForm({
+            age: data.age && data.age !== '--' ? data.age : '',
+            gender: data.gender && data.gender !== '--' ? data.gender : ''
           })
         }
       })
       .catch(() => setPatient({
         name: user?.name || 'Unknown', age: '--', id: 'PT-LOCAL', gender: user?.gender || '--',
         ward: 'Cardiology CCU', bed: 'B-04', deviceId: 'ESP32-ECG-001',
-        admittedOn: '--', diagnosis: 'Pending ECG Analysis',
+        admittedOn: '--', diagnosis: 'ECG Analysis',
       }))
   }, [user, logout, navigate])
 
@@ -83,7 +131,7 @@ export default function Dashboard() {
         setPatient(prev => ({ ...prev, age: data.age || '--', gender: data.gender || '--' }));
         setIsEditingProfile(false);
       }
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     }
     setProfileSaving(false);
@@ -146,7 +194,7 @@ export default function Dashboard() {
   const [history, setHistory] = useState([])
   const [report, setReport] = useState(null)
 
-  // Fetch report once on mount (Read-only now to avoid overwriting manual runs)
+  // Fetch report once on mount
   useEffect(() => {
     if (!user?.token) return
     fetch('/api/ecg/latest-report', { headers: { Authorization: `Bearer ${user?.token}` } })
@@ -157,6 +205,23 @@ export default function Dashboard() {
       .then(data => { if (data && !data.error) setReport(data) })
       .catch(err => console.error('Failed to fetch initial report:', err))
   }, [user, logout, navigate])
+
+  // Socket.io: listen for live report updates
+  useEffect(() => {
+    if (!user?.token) return
+    const socket = socketIO('http://localhost:5005', { transports: ['websocket'] })
+    socket.on('ecg:report', (newReport) => {
+      setReport(newReport)
+    })
+    return () => socket.disconnect()
+  }, [user])
+
+  // Auto-dismiss success toast after 6s
+  useEffect(() => {
+    if (runStatus?.type !== 'success') return
+    const t = setTimeout(() => setRunStatus(null), 6000)
+    return () => clearTimeout(t)
+  }, [runStatus])
 
   // fetch metrics and history every 2s
   useEffect(() => {
@@ -257,16 +322,27 @@ export default function Dashboard() {
     doc.text('Patient Information', 14, 40)
     doc.line(14, 42, 60, 42)
 
-    doc.setFontSize(11)
-    doc.text(`Name: ${patient?.name || 'N/A'}`, 14, 50)
-    doc.text(`Patient ID: ${patient?.id || 'N/A'}`, 14, 56)
-    doc.text(`Age/Gender: ${patient?.age || 'N/A'} yrs / ${patient?.gender || 'N/A'}`, 100, 50)
-    doc.text(`Diagnosis: ${patient?.diagnosis || 'N/A'}`, 100, 56)
+    autoTable(doc, {
+      startY: 46,
+      body: [
+        ['Patient Name:', patient?.name || 'N/A', 'Patient ID:', report?.record ? `MIT-BIH #${report.record}` : patient?.id || 'N/A'],
+        ['Age / Gender:', `${patient?.age || 'N/A'} yrs / ${patient?.gender || 'N/A'}`, 'Diagnosis:', patient?.diagnosis || 'ECG Analysis']
+      ],
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [100, 116, 139] },
+        2: { fontStyle: 'bold', fillColor: [248, 250, 252], textColor: [100, 116, 139] }
+      }
+    })
+
+    const nextY = (doc).lastAutoTable.finalY + 15
 
     // Overall Vitals Section
     doc.setFontSize(14)
-    doc.text('Clinical Summary', 14, 70)
-    doc.line(14, 72, 60, 72)
+    doc.setTextColor(0)
+    doc.text('Clinical Summary', 14, nextY)
+    doc.line(14, nextY + 2, 60, nextY + 2)
 
     const summaryData = [
       ['Metric', 'Value', 'Status'],
@@ -277,23 +353,27 @@ export default function Dashboard() {
     ]
 
     autoTable(doc, {
-      startY: 78,
+      startY: nextY + 8,
       head: [summaryData[0]],
       body: summaryData.slice(1),
-      theme: 'striped',
-      headStyles: { fillStyle: [2, 132, 199] }
+      theme: 'grid',
+      headStyles: { fillColor: [2, 132, 199], textColor: 255 },
+      styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 4 }
     })
 
     // Heart Rate Windows Table
     doc.setFontSize(14)
+    doc.setTextColor(0)
     doc.text('Heart Rate Windows (Every 10 Beats)', 14, (doc).lastAutoTable.finalY + 15)
-    
+
     const hrRows = (report?.hrWindows || []).map(win => [win.beatRange, win.robustHR, win.meanHR])
     autoTable(doc, {
       startY: (doc).lastAutoTable.finalY + 20,
       head: [['Beat Range', 'Robust HR', 'Mean HR']],
       body: hrRows.length > 0 ? hrRows : [['No data', '--', '--']],
-      theme: 'grid'
+      theme: 'grid',
+      headStyles: { fillColor: [248, 250, 252], textColor: [100, 116, 139] },
+      styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 3, halign: 'center' }
     })
 
     doc.save(`CardioAI_Report_${patient?.name || 'Patient'}.pdf`)
@@ -304,6 +384,48 @@ export default function Dashboard() {
 
       {/* Background decoration */}
       <div className="fixed inset-0 dot-grid opacity-40 pointer-events-none" />
+
+      {/* ── Full-screen loading overlay while Python script runs ── */}
+      {runningDataset && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl p-10 flex flex-col items-center gap-5 max-w-sm w-full mx-4">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full border-4 border-ecg-cyan/20 flex items-center justify-center">
+                <Heart className="w-9 h-9 text-ecg-cyan animate-pulse" />
+              </div>
+              <svg className="absolute inset-0 w-20 h-20 animate-spin" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" fill="none" stroke="#0ea5e9" strokeWidth="4" strokeDasharray="60 160" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-ecg-text">Running AI Analysis</p>
+              <p className="text-sm text-ecg-muted mt-1">Processing ECG dataset with Testing.py…</p>
+              <p className="text-xs text-ecg-muted mt-3 animate-pulse">This may take 30–60 seconds</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toast notification ── */}
+      {runStatus && !runningDataset && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-start gap-3 max-w-sm w-full rounded-2xl shadow-2xl p-4 border ${runStatus.type === 'success'
+          ? 'bg-white border-ecg-green/40 text-ecg-green'
+          : 'bg-white border-red-300/60 text-red-500'
+          }`}>
+          {runStatus.type === 'success'
+            ? <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            : <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider mb-1">
+              {runStatus.type === 'success' ? 'Analysis Complete' : 'Analysis Failed'}
+            </p>
+            <p className="text-[11px] text-ecg-text leading-relaxed break-words whitespace-pre-wrap">{runStatus.message}</p>
+          </div>
+          <button onClick={() => setRunStatus(null)} className="text-ecg-muted hover:text-ecg-text flex-shrink-0 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* HEADER */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-8 pb-3 border-b-2 border-slate-200/80 relative z-10">
@@ -316,16 +438,53 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={generatePDFReport}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-ecg-cyan border border-ecg-dark-border rounded-xl text-xs font-bold hover:bg-ecg-cyan hover:text-white transition-all duration-300 shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download Report</span>
-          </button>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              multiple
+              onChange={handleFileSelect}
+              accept=".dat,.hea,.atr"
+            />
 
+            {/* Upload Dataset button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={runningDataset}
+              title={selectedFiles ? `${selectedFiles.length} file(s) selected` : 'Select ECG files (.hea .dat .atr)'}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-ecg-text border border-ecg-dark-border rounded-xl text-xs font-bold hover:bg-slate-50 transition-all duration-300 shadow-sm disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{selectedFiles ? `${selectedFiles.length} File(s) Selected` : 'Upload Dataset'}</span>
+            </button>
 
+            {/* Run Analysis button — only when files are selected */}
+            {selectedFiles && (
+              <button
+                onClick={handleRunDataset}
+                disabled={runningDataset}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm ${runningDataset
+                  ? 'bg-ecg-cyan/60 text-white cursor-not-allowed'
+                  : 'bg-ecg-cyan text-white hover:bg-ecg-cyan/90'
+                  }`}
+              >
+                {runningDataset ? <Loader className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                <span>{runningDataset ? 'Running Model...' : 'Run Analysis'}</span>
+              </button>
+            )}
+
+            {/* Download Report button */}
+            <button
+              onClick={generatePDFReport}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-ecg-cyan border border-ecg-dark-border rounded-xl text-xs font-bold hover:bg-ecg-cyan hover:text-white transition-all duration-300 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Report</span>
+            </button>
+          </div>
 
           <div className="flex items-center gap-4 border-l-2 border-slate-400 pl-4">
             <div className="text-right hidden sm:block">
@@ -412,8 +571,8 @@ export default function Dashboard() {
               <div className="flex-1 space-y-2">
                 <p className="text-xs font-semibold text-ecg-muted mb-2">RR Interval</p>
                 <p className="text-4xl font-bold text-ecg-cyan font-mono leading-none">
-                  {report?.rrIntervals?.length > 0 
-                    ? report.rrIntervals[report.rrIntervals.length - 1] 
+                  {report?.rrIntervals?.length > 0
+                    ? report.rrIntervals[report.rrIntervals.length - 1]
                     : (rrInterval || "--")}
                   <span className="text-xs ml-1 text-ecg-muted">ms</span>
                 </p>
@@ -581,7 +740,7 @@ export default function Dashboard() {
 
         {/* LOWER RIGHT: DATA FEEDS (Spans 2 cols) */}
         <div className="lg:col-span-2 flex gap-4 min-h-0">
-          
+
           {/* HR Windows Feed */}
           <div className="card bg-white flex flex-col flex-1 shadow-md min-h-0 rounded-2xl border border-slate-100">
             <div className="flex items-center justify-between p-4 border-b border-ecg-dark-border bg-slate-50/50">

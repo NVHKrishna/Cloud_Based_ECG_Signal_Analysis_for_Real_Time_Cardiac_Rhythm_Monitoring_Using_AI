@@ -94,6 +94,67 @@ router.get('/latest-report', authMiddleware, async (req, res) => {
   }
 });
 
+// ── POST /api/ecg/upload-and-run ──
+router.post('/upload-and-run', authMiddleware, async (req, res) => {
+  const fs = require('fs')
+  try {
+    const files = req.body.files
+    if (!files || files.length === 0) return res.status(400).json({ error: 'No files provided' })
+
+    const uploadId = 'upload_' + Date.now()
+    const uploadDir = path.join(__dirname, '../../uploads', uploadId)
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+
+    let recordName = ''
+    files.forEach(f => {
+      const ext = path.extname(f.name)
+      if (ext === '.hea') recordName = path.basename(f.name, ext)
+      const buffer = Buffer.from(f.content, 'base64')
+      fs.writeFileSync(path.join(uploadDir, f.name), buffer)
+    })
+
+    if (!recordName && files.length > 0) {
+      recordName = path.basename(files[0].name, path.extname(files[0].name))
+    }
+
+    // Trailing separator required by wfdb
+    const dataPath = uploadDir.endsWith(path.sep) ? uploadDir : uploadDir + path.sep
+
+    const scriptPath = path.join(__dirname, '../../ML/New_Testing.py')
+    let output = ''
+    let errorOutput = ''
+
+    console.log(`[Upload&Run] record=${recordName}  dataPath=${dataPath}  user=${req.user.id}`)
+
+    const py = spawn('python', [scriptPath, recordName, dataPath, req.user.id], {
+      cwd: path.join(__dirname, '../../'),
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
+    })
+    py.stdout.on('data', d => { output += d.toString(); console.log('[py]', d.toString().trim()) })
+    py.stderr.on('data', d => { errorOutput += d.toString(); console.error('[py-err]', d.toString().trim()) })
+
+    py.on('close', async (code) => {
+      console.log(`[Upload&Run] Python exited with code ${code}`)
+      if (code !== 0) {
+        console.error('[Upload&Run] Python error:\n', errorOutput)
+        return res.status(500).json({ success: false, error: 'Report script failed', details: errorOutput.slice(-800) })
+      }
+      try {
+        const latest = await Report.findOne({ userId: req.user.id }).sort({ timestamp: -1 })
+        const io = req.app.get('io')
+        if (io && latest) io.emit('ecg:report', latest)
+        res.json({ success: true, report: latest })
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Finished but failed to fetch report' })
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Error in upload-and-run:', error)
+    res.status(500).json({ error: 'Upload failed' })
+  }
+})
+
 // ── GET /api/ecg/report ──
 // Runs full New_Testing.py style batch report.
 router.get('/report', authMiddleware, async (req, res) => {
