@@ -5,7 +5,10 @@
       "dest": "http://<EC2-IP>/api/$1"
     },
     {
-      "src": "/(.*)",
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
       "dest": "/index.html"
     }
   ]
