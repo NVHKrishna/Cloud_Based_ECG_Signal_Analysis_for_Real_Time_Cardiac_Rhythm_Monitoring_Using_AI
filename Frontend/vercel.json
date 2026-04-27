@@ -1,9 +1,13 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination":"http://16.112.118.116:5005/api/$1"
+      "src": "/api/(.*)",
+      "dest": "http://16.112.226.82:5005/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/"
     }
   ]
 }
