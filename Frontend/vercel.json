@@ -1,13 +1,15 @@
 {
-  "version": 2,
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "http://16.112.226.82:5005/api/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }
