@@ -24,18 +24,26 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecg_db')
 // ── Socket.io for real-time ECG streaming ──
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://localhost:5175'],
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
+    origin: [
+      "http://localhost:5173",
+      "https://cardioai-ecg.vercel.app"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 })
 app.set('io', io)
 
+
 // ── Middleware ──
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://localhost:5175'],
-  credentials: true,
+  origin: [
+    "http://localhost:5173",
+    "https://cardioai-ecg.vercel.app"
+  ],
+  credentials: true
 }))
+
 app.use(express.json({ limit: '100mb' }))
 app.use(express.urlencoded({ extended: true, limit: '100mb' }))
 
