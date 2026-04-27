@@ -12,8 +12,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setLoading(true)
     try {
-      const baseUrl = import.meta.env.VITE_BACKEND_URL || ''
-      const res = await fetch(`${baseUrl}/api/auth/login`, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -39,8 +38,7 @@ export function AuthProvider({ children }) {
   const register = async (name, email, password, age, gender) => {
     setLoading(true)
     try {
-      const baseUrl = import.meta.env.VITE_BACKEND_URL || ''
-      const res = await fetch(`${baseUrl}/api/auth/register`, {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, age, gender }),
@@ -58,8 +56,7 @@ export function AuthProvider({ children }) {
   const oauthLogin = async (provider, email, name, providerId) => {
     setLoading(true)
     try {
-      const baseUrl = import.meta.env.VITE_BACKEND_URL || ''
-      const res = await fetch(`${baseUrl}/api/auth/oauth`, {
+      const res = await fetch('/api/auth/oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, email, name, providerId }),

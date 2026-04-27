@@ -22,7 +22,6 @@ const TICK_MS = 40
 export default function Dashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const baseUrl = import.meta.env.VITE_BACKEND_URL || ''
 
 
   const [ecgBuffer, setEcgBuffer] = useState(() => new Array(WINDOW).fill({ value: 0, isPeak: false }))
@@ -68,7 +67,7 @@ export default function Dashboard() {
           reader.readAsDataURL(file)
         }))
       )
-      const resp = await fetch(`${baseUrl}/api/ecg/upload-and-run`, {
+      const resp = await fetch('/api/ecg/upload-and-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
         body: JSON.stringify({ files: readFiles })
@@ -95,7 +94,7 @@ export default function Dashboard() {
   // fetch patient
   useEffect(() => {
     if (!user?.token) return
-    fetch(`${baseUrl}/api/patient`, { headers: { Authorization: `Bearer ${user?.token}` } })
+    fetch('/api/patient', { headers: { Authorization: `Bearer ${user?.token}` } })
       .then(r => {
         if (r.status === 401) { logout(); navigate('/login'); return }
         if (!r.ok) throw new Error('Failed to fetch patient')
@@ -120,7 +119,7 @@ export default function Dashboard() {
   const saveProfile = async () => {
     setProfileSaving(true)
     try {
-      const resp = await fetch(`${baseUrl}/api/auth/profile`, {
+      const resp = await fetch('/api/auth/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +198,7 @@ export default function Dashboard() {
   // Fetch report once on mount
   useEffect(() => {
     if (!user?.token) return
-    fetch(`${baseUrl}/api/ecg/latest-report`, { headers: { Authorization: `Bearer ${user?.token}` } })
+    fetch('/api/ecg/latest-report', { headers: { Authorization: `Bearer ${user?.token}` } })
       .then(r => {
         if (r.status === 401) { logout(); navigate('/login'); return }
         return r.json()
@@ -231,12 +230,12 @@ export default function Dashboard() {
     if (!user?.token) return
     const fetchData = () => {
       // Trigger processing to save data for the current user
-      fetch(`${baseUrl}/api/ecg/process-ecg`, { headers: { Authorization: `Bearer ${user?.token}` } })
+      fetch('/api/ecg/process-ecg', { headers: { Authorization: `Bearer ${user?.token}` } })
         .then(r => r.json())
         .catch(err => console.error('Failed to trigger background processing:', err));
 
       // Fetch latest
-      fetch(`${baseUrl}/api/ecg/latest`, { headers: { Authorization: `Bearer ${user?.token}` } })
+      fetch('/api/ecg/latest', { headers: { Authorization: `Bearer ${user?.token}` } })
         .then(r => {
           if (r.status === 401) { logout(); navigate('/login'); return null }
           if (!r.ok) return null
@@ -260,7 +259,7 @@ export default function Dashboard() {
         .catch(err => console.error('Failed to fetch latest:', err));
 
       // Fetch latest report
-      fetch(`${baseUrl}/api/ecg/latest-report`, { headers: { Authorization: `Bearer ${user?.token}` } })
+      fetch('/api/ecg/latest-report', { headers: { Authorization: `Bearer ${user?.token}` } })
         .then(r => {
           if (r.status === 401) { logout(); navigate('/login'); return null }
           if (!r.ok) return null
@@ -272,7 +271,7 @@ export default function Dashboard() {
         .catch(err => console.error('Failed to fetch latest report:', err));
 
       // Fetch history
-      fetch(`${baseUrl}/api/ecg/history`, { headers: { Authorization: `Bearer ${user?.token}` } })
+      fetch('/api/ecg/history', { headers: { Authorization: `Bearer ${user?.token}` } })
         .then(r => {
           if (r.status === 401) { logout(); navigate('/login'); return null }
           if (!r.ok) return null
