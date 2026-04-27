@@ -1,9 +1,13 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-       "dest": "http://16.112.226.82:5005/api/$1"
+      "src": "/api/(.*)",
+      "dest": "http://16.112.226.82:5005/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/"
     }
   ]
 }
