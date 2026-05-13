@@ -20,7 +20,7 @@ RUN npm install
 RUN pip3 install --break-system-packages -r requirements.txt
 
 # Expose backend port
-EXPOSE 5005
+EXPOSE 5004
 
 # Start backend server
 CMD ["node", "server.js"]

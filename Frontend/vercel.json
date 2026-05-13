@@ -2,7 +2,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "http://16.112.226.82:5005/api/$1"
+      "dest": "http://98.130.94.101:5004/api/$1"
+    },
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "http://98.130.94.101:5004/socket.io/$1"
     },
     {
       "handle": "filesystem"

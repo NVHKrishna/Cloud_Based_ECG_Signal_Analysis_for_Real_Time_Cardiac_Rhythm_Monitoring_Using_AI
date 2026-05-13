@@ -18,7 +18,7 @@ else:
     TEST_RECORD = "108"
 
 if not DATA_PATH.endswith("\\") and not DATA_PATH.endswith("/"):
-    DATA_PATH += "\\"
+    DATA_PATH += os.sep
     
 WINDOW = 220
 fs = 360
@@ -95,7 +95,7 @@ beats = beats.reshape(-1, WINDOW*2, 1)
 
 # ================= LOAD MODEL =================
 model = load_model(
-    "final_ecg_arrhythmia_model.h5",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "final_ecg_arrhythmia_model.h5"),
     custom_objects={"loss": focal_loss()}
 )
 
@@ -175,7 +175,13 @@ try:
     from datetime import datetime
     
     # Connection to MongoDB
-    client = MongoClient("mongodb://localhost:27017/")
+    from dotenv import load_dotenv
+    # Load from project root or backend folder
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
+    
+    mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+    client = MongoClient(mongo_uri)
     db = client["ecg_db"]
     reports_col = db["reports"]
     

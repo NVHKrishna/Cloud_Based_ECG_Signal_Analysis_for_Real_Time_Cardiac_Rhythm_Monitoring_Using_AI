@@ -17,7 +17,7 @@ const app = express()
 const server = http.createServer(app)
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecg_db')
+mongoose.connect(process.env.MONGODB_URI )
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err))
 
@@ -158,7 +158,7 @@ async function runPeriodicProcessing() {
 // setInterval(runPeriodicProcessing, 2000);
 
 // ── Start server ──
-const PORT = process.env.PORT || 5005
+const PORT = process.env.PORT || 5003
 server.listen(PORT, () => {
   console.log(`\n🫀  CardioAI ECG Backend running on http://localhost:${PORT}`)
   console.log(`   REST API : http://localhost:${PORT}/api`)

@@ -210,12 +210,12 @@ export default function Dashboard() {
   // Socket.io: listen for live report updates
   useEffect(() => {
     if (!user?.token) return
-    // const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5005'
-    // const socket = socketIO(backendUrl, { transports: ['websocket'] })
-    // socket.on('ecg:report', (newReport) => {
-    //   setReport(newReport)
-    // })
-    // return () => socket.disconnect()
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
+    const socket = socketIO(backendUrl, { transports: ['websocket', 'polling'] })
+    socket.on('ecg:report', (newReport) => {
+      setReport(newReport)
+    })
+    return () => socket.disconnect()
   }, [user])
 
   // Auto-dismiss success toast after 6s

@@ -62,3 +62,6 @@ uploads/
 Thumbs.db
 node_modules
 data
+.env
+.env.*
+! .env.example
